@@ -1,0 +1,49 @@
+# ~/.config/tmx/config.toml
+
+# auto | desktop | mobile
+default_ui = "auto"
+mobile_width_threshold = 100
+mobile_height_threshold = 35
+
+# fzf | tv | auto
+selector_backend = "fzf"
+
+# none | fd_rg | fff | auto
+project_search_backend = "auto"
+
+prompt_notes = true
+note_prompt_min_active_minutes = 20
+note_prompt_cooldown_hours = 4
+
+# explicit | daily | same-as-desktop
+mobile_note_prompt_mode = "explicit"
+
+project_roots = [
+  "~/src",
+  "~/work",
+  "~/Code"
+]
+
+[paths]
+state = "~/.local/state/tmx/state.sqlite3"
+layouts = "~/.config/tmx/layouts"
+
+[dependencies]
+use_fd = true
+use_rg = true
+use_zoxide = true
+use_fff = false
+use_television = false
+mac_notifications = false
+
+[bindings]
+palette = "T"
+mobile_palette = "M"
+last = "L"
+note = "N"
+rename_menu = "R"
+
+[destructive_actions]
+show_in_palette = false
+require_confirmation = true
+mobile_require_typed_confirmation = true
