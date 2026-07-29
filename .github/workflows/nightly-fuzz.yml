@@ -1,0 +1,28 @@
+name: Nightly fuzz
+
+on:
+  schedule:
+    - cron: '27 5 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fuzz:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c
+        with:
+          toolchain: nightly
+      - run: cargo install cargo-fuzz --version 0.13.2 --locked
+      - name: Prepare writable corpus copies
+        run: |
+          cp -R fuzz/corpus/inventory_records "$RUNNER_TEMP/inventory-records"
+          cp -R tests/fixtures/inventory/v1 "$RUNNER_TEMP/inventory-json"
+      - run: cargo fuzz run inventory_records "$RUNNER_TEMP/inventory-records" -- -max_total_time=120
+      - run: cargo fuzz run inventory_json "$RUNNER_TEMP/inventory-json" -- -max_total_time=120

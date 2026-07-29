@@ -1,0 +1,105 @@
+# Unified switcher release checklist
+
+Do not mark a release/default-on rollout complete from inferred behavior. Attach command logs, benchmark output, CI URLs, screenshots, or recorded terminal output for every checked row. An unchecked row is an explicit gap. `./scripts/validate-release-evidence.sh --local` verifies links, checksums, the default-off example, curated-only fuzz corpora, and release-candidate filesystem hygiene now. Run the command without `--local` last; release mode fails closed on an uncommitted candidate, missing origin/publication destination, placeholders, malformed or cross-repository evidence references, or any unchecked row. Its current release-mode failure is expected until the external rollout gates below close.
+
+Release metadata uses machine-checked forms: a full 40-hex candidate commit; semantic versions; canary identities as publication-safe `user@host` aliases; timezone-bearing ISO-8601 start/end values plus a matching whole-hour duration; HTTPS GitHub Actions run/job URLs from `origin`; a relative incident-log artifact; an HTTPS publication URL containing the candidate commit; a formal-sign-off artifact containing the candidate commit, reviewer, date, and acceptance; and a later minor release plus matching HTTPS release URL for kill-switch retention.
+
+The PRD directly requires the opt-in-canary/default-on sequence, pre-default-on publication, recorded canary duration, and one-minor-release kill-switch retention. Origin-bound hosted URLs, a clean committed-candidate identity, publication-safe canary aliases, direct incident/sign-off artifacts, and exact URL/commit coupling are this checklist's adopted fail-closed evidence controls rather than verbatim PRD clauses. They remain release policy unless a release owner explicitly revises them; they must not be silently attributed to the PRD or bypassed locally.
+
+## Build under review
+
+- Commit: `WORKTREE` (replace with release commit)
+- Local evidence date: 2026-07-23
+- Local host: `macos-arm64-local` (publication-safe evidence alias), macOS 15.6.1 arm64, WezTerm `20260716-195552-76b606ec`, tmux 3.6a, stable Rust 1.85.1
+- Canary version: not assigned
+- Canary users/hosts: not authorized or assigned
+- Canary start/end/duration: not started; acceptance duration requires release-owner input
+- Canary incident log: not started
+- Publication destination/release commit: no Git remote configured; authorization required
+- Hosted CI run: not available; requires an authorized hosted run
+- Hosted compatibility job: not available; requires an authorized hosted job
+- Hosted scheduled-fuzz run: not available; requires an authorized scheduled run
+- Canary incident artifact: not available; requires an authorized canary
+- Formal release sign-off: pending committed candidate
+- Kill-switch retention release: not reached
+- Reviewer analysis: the whole-release independent review found no unresolved blocker/high/medium defects and judged the local implementation acceptance-ready (`artifacts/release-evidence/formal-release-review.md`); the earlier targeted review remains in `final-code-review.md`. A callback-free runtime-checked acceptance follow-up also passed (`local-acceptance-check.md`). These accept the local implementation only; the candidate remains uncommitted, so formal release sign-off is deferred to the committed candidate.
+- Evidence integrity: all 24 review/log/screenshot artifacts verify against `artifacts/release-evidence/SHA256SUMS`.
+- Known limitations: Wayland may prohibit OS focus; remote/non-local domains and Windows/WSL are unsupported by v1.
+
+## Automated gates
+
+- [x] `./scripts/validate.sh` passes with locked dependencies and no lint/test/golden drift (local evidence, 2026-07-22). A twice-observed loaded-host timeout in the three-kind barrier-deletion test was isolated to test synchronization: behavioral fixtures use the contract's 2,000 ms maximum to isolate semantics from loaded-host scheduling, while the dedicated timeout test forces 100 ms. A separate non-ignored live test omits the flag and proves success with the product's 250 ms CLI default; after removing two redundant full-inventory passes from mapped-client routing, 20 consecutive default-deadline regressions passed. One later whole-suite run launched concurrently with checksum and secret-scanner work caused the 400 ms hung-endpoint test's healthy endpoint to report `timeout`; 20 isolated exact-test repetitions, 20 controlled four-CPU-hog probes, 12 controlled eight-CPU-hog probes, and a subsequent isolated whole suite all passed while retaining the PRD's fixed 500 ms external fallback gate. The excursion is recorded rather than hidden; no deadline or assertion was weakened.
+- [x] Both GitHub Actions workflows pass `actionlint` v1.7.7 semantic validation, every third-party action is pinned to an immutable full commit SHA with the Rust channel/version supplied explicitly, workflow tokens are limited to read-only repository contents, checkout never persists credentials into the worktree, and every job has an explicit timeout. A focused local review found that regex-only YAML checks could miss alternate valid spacing/comment masking and that Python `assert` checks disappear under `PYTHONOPTIMIZE=1`; both are closed by byte-canonical SHA-256 workflow allowlists plus explicit fail-closed checks, with three injected regressions rejected. The hosted validation job permanently runs the full suite with `PYTHONOPTIMIZE=1`. The repository currently has no configured remote on which to create hosted run URLs.
+- [x] The package declares `rust-version = "1.85"`, README/build documentation states the same floor, and a dedicated CI job pins Rust 1.85.0. Isolated Rust 1.85.0 toolchains compiled every locked target and feature successfully on macOS and Debian bookworm ARM64 (`artifacts/release-evidence/linux-validate.log`); Rust 1.70.0 cannot parse the shipped v4 lockfile, which exposed and prompted removal of the stale 1.70 claim.
+- [x] `./scripts/benchmark-switcher.sh` records p50/p95/max and passes all budgets (local evidence below).
+- [x] Linux single-socket, two-socket, two-PTY-client, stale barrier, hostile contract, and no-ambient tests pass in an isolated Debian bookworm ARM64 container with stable Rust 1.97.1 (`artifacts/release-evidence/linux-validate.log`, 2026-07-22); hosted CI run URL remains required for release publication.
+- [x] macOS integration tests pass with required tmux and Lua prerequisites.
+- [x] Locally built tmux 3.2 and tmux 3.6a both pass the complete Rust/Lua suite on Linux (`artifacts/release-evidence/linux-tmux-matrix.log`) and macOS. The hosted matrix restricts downloads and redirects to modern HTTPS and verifies pinned SHA-256 digests before extracting either official source archive; hosted CI job URLs remain required for release publication.
+- [x] Parser/JSON fuzz targets completed refreshed 5-second local smoke runs after portable framing changes (183,183 and 369,077 executions, no crash), in addition to the prior 10-second runs (245,381 and 566,999 executions). The scheduled workflow installs locked `cargo-fuzz` 0.13.2 rather than an unbounded latest version; scheduled-job URL remains required for release publication.
+- [x] Human CLI/completion compatibility tests pass; machine goldens are reviewed separately.
+- [x] Pinned gitleaks v8.24.3 scanned all 108 tracked/untracked candidate files with redaction and reported zero findings (`artifacts/release-evidence/secret-scan.log`).
+- [x] Fuzz artifacts are release-clean: only the three named parser regression seeds are retained; 996 generated hash-named cases were removed, and both fuzz targets passed 1,000-run smoke checks using temporary corpora.
+- [x] A publication privacy scan across all 108 candidate files found no real user-home, runtime socket, or internal runner path; path-pattern matches are synthetic test/fixture paths, benchmark or validator temp templates, or intentional ignore entries. OCR across all 16 screenshots found zero user-path, identity, host, network, or credential patterns after pixelating only the local username/hostname tokens in four macOS captures; benchmark metadata uses the stable publication-safe host alias `macos-arm64-local`.
+- [x] Candidate hygiene is fail-closed: no symlinks, empty files, or CRLF text are present; the only binary files are the 16 evidence PNGs; all three release scripts are executable. Positive and injected empty-file/symlink/CRLF/non-executable negative paths were exercised.
+- [x] An isolated, Git-free package rehearsal copied exactly the 108 candidate paths into a fresh temporary directory: locked release builds produced executable `tmx` and `tmx-supervisor` binaries, test compilation passed, and `./scripts/validate.sh` passed there with 58 library tests, all integration suites (20 passed/1 platform-ignored in the largest suite), 31 Lua tests, direct local evidence validation without repository metadata or a Git executable, and the isolated release-validator regression suite. The latest deterministic recovery archive replay also passed the durable workflow-policy checks; Cargo's Git-free discovery omitted only `.cargo_vcs_info.json`, `.gitignore`, and the two hidden workflow files from the generated crate, while all 99 common package files were byte-identical to the 103-file worktree package and both installed executables passed exact smokes. No ignored or workspace-local file is required.
+- [x] Pinned `cargo-audit` 0.22.2 scanned both `Cargo.lock` and `fuzz/Cargo.lock`: zero vulnerabilities and zero warnings in both dependency graphs. The scanner was installed under an isolated temporary root and removed afterward.
+- [x] Pinned `cargo-deny` 0.18.3 checked both graphs against the explicit allowlist `Apache-2.0`, `BSD-2-Clause`, `MIT`, `MPL-2.0`, `NCSA`, `Unicode-3.0`, and `Unlicense`, with `unknown-registry = "deny"`, `unknown-git = "deny"`, and only the crates.io index allowed. Its initial fuzz-graph check exposed missing package metadata; `tmx-fuzz` now declares `license = "MIT"`, and both final license/source checks pass with zero policy errors or warnings. Temporary policy/tooling files were removed.
+- [x] `cargo package --locked --allow-dirty` packaged a self-contained 103-file archive (1.3 MiB; approximately 634 KiB compressed) and successfully verified the normalized source package. Inspection of the actual `.crate` archive found zero broken relative Markdown links; required documentation and release evidence remain included rather than creating package-only dead links. Two consecutive packages of the current candidate are byte-identical by SHA-256; all 103 entries use one normalized timestamp and root ownership, contain no absolute/traversal paths or special entries, and grant executable mode only to the three intended scripts. Installing that exact archive under isolated `CARGO_HOME` and installation roots produced both executables; `tmx --help` and a byte-exact `tmx-supervisor` JSON passthrough probe passed with empty stderr. Its sole warning is the intentionally unresolved documentation/homepage/repository URL; no URL will be invented before the publication destination is authorized. `cargo publish --dry-run --allow-dirty --locked` also completes packaging and verification without uploading. The crates.io `tmx` namespace is already occupied by an unrelated Tiled-map crate, so crates.io publication additionally requires an authorized alternate package name (while retaining the `tmx` binary name) or an ownership transfer; three currently unclaimed names observed via the registry API are `tmx-switcher`, `tmx-session-switcher`, and `tmx-mux`, but availability is not guaranteed until publication. An isolated synthetic committed-candidate rehearsal changed only the package identity to `tmx-switcher`, updated both lockfiles and the fuzz dependency alias, produced the same 103-file package, passed locked compilation and `cargo publish --dry-run`, and installed the exact archive with the unchanged `tmx` and `tmx-supervisor` binary names; choosing that identity requires authorization, not further technical discovery. Extracting the exact 103-file crate exposed that Cargo correctly excludes the nested fuzz workspace package, so the crate cannot satisfy the repository-candidate evidence gate. `scripts/validate.sh` now runs that direct gate by default; an extracted crate requires explicit `TMX_VALIDATION_CONTEXT=package`, validates the structure and expected layout of Cargo's metadata without treating it as provenance, prints that the repository gate was not run and that package self-testing is not release validation, then runs all package-applicable tests. The release-validator regression harness gives only its temporary synthetic repositories the exact three curated fixture byte streams, independent of any package marker. Repository validation separately hash-pins the real three seeds. The exact crate's explicitly labelled optimized-mode package self-test passes, while direct `validate-release-evidence.sh --local` fails there by design.
+- [x] The checked-in release-evidence validator regression suite passes a direct local tree both without repository metadata and without any Git executable, plus a complete isolated synthetic two-commit release path using valid SemVer build metadata, then rejects 22 independent fail-closed cases. Coverage includes post-candidate source drift; tracked/checksummed artifact containment; canonical repository-bound URLs without dot segments or repeated separators; SemVer and stable same-major retention boundaries; commit, duration, sign-off, incident, uniqueness, and traversal checks; and repository-contained Markdown links. `./scripts/validate.sh` runs this suite locally and in CI.
+- [x] After 100 inventory invocations, no `tmx` zombie remains; the hung-endpoint test also asserts no surviving child.
+
+### Benchmark evidence
+
+| Host / runner | tmux | Rust profile | Endpoints / targets | Inventory p50 / p95 / max | 1,000-choice p50 / p95 / max | Hung fallback | Route p95 | Evidence |
+|---|---|---|---:|---|---|---|---|---|
+| macos-arm64-local / macOS 15.6.1 arm64 | 3.6a | release | 1 / 1 normal; 1,000 Lua rows | 38.230 / 41.764 / 51.902 ms | 14.628 / 16.126 / 16.197 ms | ≤500 ms integration gate | 57.368 / 67.054 / 85.626 ms | locked `./scripts/benchmark-switcher.sh` 2026-07-22 after exact-client postcondition hardening; zombies 0 |
+
+A preceding run on the same host passed inventory/Lua but failed the route gate at 280.761 ms p95; an immediate idle-host rerun is the passing row above. Preserve this note for canary variance review rather than hiding the failed sample.
+
+Required budgets: normal local inventory p95 ≤100 ms; 1,000-target choice construction p95 ≤250 ms; native fallback with one hung endpoint ≤500 ms; route p95 ≤250 ms excluding terminal startup.
+
+## Contract and safety audit
+
+- [x] Inventory stdout is JSON-only and preserves healthy endpoints on partial failure.
+- [x] Required fields, exact host/endpoint/generation/parent identity, stable order, capabilities, and typed diagnostics match reviewed fixtures.
+- [x] Duplicate keys, invalid UTF-8/numbers/booleans/sigils, delimiter collisions, excessive bytes/depth/count, stderr flood, and timeout fail boundedly without panic.
+- [x] Default/named/path registration resolves exactly, while every command is pinned via `-S` to the verified canonical socket; equivalent aliases collapse and prohibited sockets are never queried.
+- [x] Inventory and stale routes create no socket/server/session/window/pane/attachment.
+- [x] Session/window/pane routes assert exact argument vectors and use no shell, label parsing, name fallback, `-d`, or `-x`.
+- [x] Multi-socket routing leaves the unrelated endpoint generation and state unchanged.
+- [x] Multi-client rows record session/window/pane/zoom/count/TTY/fingerprint and prove unrelated-client state/shared-pane effects.
+- [x] Target, client, reused PTY, and socket replacement at deterministic barriers yields exact stale/unavailable outcomes and zero unintended mutation.
+- [x] Raw socket paths, labels, notes, titles, commands, cwd, PTYs, request JSON, and raw stderr are absent from routine output/logs.
+
+## Manual WezTerm GUI matrix
+
+Record OS/display server plus exact WezTerm and tmux versions for each row.
+
+| Platform / display | Fuzzy `Alt+9` | Non-fuzzy `Alt+Shift+9` | Native-only `Alt+0` | Other workspace/window focus | Local new-tab placement | Cancel/current no-op | Stale native | Readable hostile/duplicate labels | Native fallback diagnostic | Evidence |
+|---|---|---|---|---|---|---|---|---|---|---|
+| macOS | Pass; 14-choice rendered selector | Pass; rendered jump-key selector | Pass; exactly two native rows and zero tmx invocations | Both workspaces rendered; exact activation/focus adapter verified | X11 real placement plus backend-independent PTY/adapter verification | PID-targeted Escape pass; current no-op automated | Pass; exact stale identity test creates nothing | Pass; duplicate endpoint-qualified rows rendered | Pass; missing-tmx diagnostic rendered with native choices intact | `artifacts/release-evidence/macos-wezterm-{fuzzy,nonfuzzy,native-only,after-cancel,fallback}.png`; `macos-wezterm-bindings.log`; `tests/lua/adapter_spec.lua` |
+| Linux X11 | Pass; rendered | Pass; rendered jump keys | Pass; native-only rendered | Pass; real selection switched `focus-main`→`focus-other` and focused target X11 window | Pass; real key selection created one new local tab, exact alpha `%0` client, beta untouched | Pass; automated | Pass; exact stale identity test | Pass; endpoint-qualified duplicates rendered | Native fallback rendered; diagnostic assertion automated | Headless X11, WezTerm `20260117-154428-05343b38`; `linux-x11-{fuzzy,nonfuzzy,native-only,fallback,attachment,focus-selector,native-focus}.png` |
+| Linux Wayland | Pass; rendered | Pass; rendered jump keys | Pass; native-only rendered; compositor may deny OS focus | Wayland focus is best-effort and returns typed partial success when denied | X11 real placement plus backend-independent PTY/adapter verification | Pass; automated | Pass; exact stale identity test | Pass; endpoint-qualified duplicates rendered | Native fallback rendered; diagnostic assertion automated | Weston 10 headless/pixman, WezTerm `20260117-154428-05343b38`; portal appearance warning only; `linux-wayland-{fuzzy,nonfuzzy,native-only,fallback}.png` |
+
+Also verify:
+
+- [x] Every native tab and pane across the two rendered mux windows/workspaces is present and directly selectable (`macos-wezterm-fuzzy.png`; global-enumeration adapter test covers larger sets).
+- [x] Every tmux session, linked window identity, and pane across both configured trusted endpoints is present (`macos-wezterm-fuzzy.png`; multi-endpoint integration suite).
+- [x] Current and attached states are understandable without color in the rendered selector and model snapshots.
+- [x] Selecting a matched local client reuses/focuses it and creates no tab (two-client PTY integration plus host-focus adapter test).
+- [x] An unmatched local target opened exactly one local/default-domain tab in rendered X11 acceptance (native rows 2→4), attached alpha `$0/@0/%0`, and left beta clientless; automated cases cover external-only/ambiguous/nil-TTY non-movement.
+- [x] Immediate attachment failure remains visible with actionable bounded text (held-attachment integration and argv adapter assertions).
+- [x] Successful tmux route plus unavailable OS focus is reported as partial success and is not retried (adapter focus-failure test).
+- [x] Shared active-pane effects and zoom behavior match documentation (exact multi-client integration state assertions).
+- [x] Repeated key presses show at most one selector and leave no subprocess growth (adapter suppression, supervisor reaping, and 100-inventory zombie checks).
+
+## Canary and rollback
+
+- [x] Install disabled and confirm native collection plus emergency binding (default-off configuration plus rendered macOS/X11/Wayland native-only evidence).
+- [ ] Enable only for named canary users/hosts and record duration and incidents.
+- [x] Rehearse TOML kill switch, Lua process-local switch, and old-binding restoration (isolated capability smoke, `enabled=false` adapter test, capability-gap binding-preservation test, and documented removal procedure).
+- [x] Confirm rollback requires no database migration/tmux cleanup and does not kill user-owned tabs (configuration-only disable path; no switcher persistence migration or kill command).
+- [ ] Keep the kill switch for at least one minor release.
+- [ ] Publish [WEZTERM_SWITCHER.md](WEZTERM_SWITCHER.md), [MACHINE_API.md](MACHINE_API.md), exact compatibility matrix, trust/endpoint examples, troubleshooting, privacy, known limitations, and this evidence. If crates.io publication is selected, set valid Cargo documentation/homepage/repository metadata from the authorized destination and rerun the verified package build first.
+
+Default-on is blocked while any required row is unchecked or supported-platform evidence is missing.

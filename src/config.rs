@@ -20,6 +20,7 @@ pub struct Config {
     pub dependencies: DependenciesConfig,
     pub bindings: BindingsConfig,
     pub destructive_actions: DestructiveActionsConfig,
+    pub switcher: SwitcherConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -58,6 +59,34 @@ pub struct DestructiveActionsConfig {
     pub mobile_require_typed_confirmation: bool,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct SwitcherConfig {
+    /// Rollout flag for tmux augmentation in the WezTerm adapter.
+    pub enabled: bool,
+    /// Trusted tmux endpoints. Empty means only the environment's default endpoint.
+    pub endpoints: Vec<EndpointConfig>,
+    /// One invocation-to-inventory wall-clock budget.
+    pub deadline_ms: u64,
+    pub endpoint_soft_timeout_ms: u64,
+    pub max_concurrency: usize,
+    pub max_endpoints: usize,
+    pub max_targets: usize,
+    pub max_stdout_bytes_per_endpoint: usize,
+    pub max_stderr_bytes_per_endpoint: usize,
+    /// Opt-in scan of the current user's tmux runtime directory.
+    pub discover_named: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(default)]
+pub struct EndpointConfig {
+    /// `default`, `name:<socket-name>`, or `path:<absolute-socket-path>`.
+    pub selector: String,
+    /// Safe presentation alias; raw socket paths are never used as labels.
+    pub alias: String,
+}
+
 impl Default for Config {
     fn default() -> Self {
         Self {
@@ -75,6 +104,7 @@ impl Default for Config {
             dependencies: DependenciesConfig::default(),
             bindings: BindingsConfig::default(),
             destructive_actions: DestructiveActionsConfig::default(),
+            switcher: SwitcherConfig::default(),
         }
     }
 }
@@ -123,6 +153,32 @@ impl Default for DestructiveActionsConfig {
     }
 }
 
+impl Default for SwitcherConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            endpoints: vec![EndpointConfig::default()],
+            deadline_ms: 400,
+            endpoint_soft_timeout_ms: 150,
+            max_concurrency: 4,
+            max_endpoints: 32,
+            max_targets: 10_000,
+            max_stdout_bytes_per_endpoint: 4 * 1024 * 1024,
+            max_stderr_bytes_per_endpoint: 16 * 1024,
+            discover_named: false,
+        }
+    }
+}
+
+impl Default for EndpointConfig {
+    fn default() -> Self {
+        Self {
+            selector: "default".into(),
+            alias: "default".into(),
+        }
+    }
+}
+
 impl Config {
     pub fn load() -> Result<Self> {
         let path = config_path();
@@ -140,7 +196,9 @@ impl Config {
 }
 
 pub fn config_path() -> PathBuf {
-    expand_path("~/.config/tmx/config.toml")
+    std::env::var_os("TMX_CONFIG")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| expand_path("~/.config/tmx/config.toml"))
 }
 
 pub fn expand_path(path: &str) -> PathBuf {
@@ -166,6 +224,9 @@ mod tests {
         assert_eq!(cfg.mobile_height_threshold, 35);
         assert_eq!(cfg.selector_backend, "fzf");
         assert!(cfg.prompt_notes);
+        assert!(!cfg.switcher.enabled);
+        assert_eq!(cfg.switcher.deadline_ms, 400);
+        assert_eq!(cfg.switcher.endpoints[0].selector, "default");
     }
 
     #[test]

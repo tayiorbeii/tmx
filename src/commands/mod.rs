@@ -2,10 +2,13 @@ use anyhow::{anyhow, Context, Result};
 use clap::Parser;
 use std::collections::HashSet;
 use std::io::{self, Write};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::thread;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use crate::cli::{
-    generate_completions, Cli, Command, NewArgs, NoteArgs, PaletteArgs, RenameArgs, ScopeArg,
-    ViewArgs,
+    generate_completions, AttachArgs, Cli, Command, InventoryArgs, NewArgs, NoteArgs, PaletteArgs,
+    RenameArgs, RouteArgs, RouteModeArg, RouteTargetKindArg, ScopeArg, ViewArgs,
 };
 use crate::config::{config_path, Config};
 use crate::mobile::{select_profile, ProfileInputs};
@@ -19,6 +22,12 @@ use crate::selector::{default_selector, Selector};
 use crate::state::{
     stable_pane_key, stable_session_key, stable_session_parts, stable_window_key, Store,
 };
+use crate::switcher::contract::{
+    ClientFingerprint, RouteMode, RouteRequest, SchemaVersion, TargetIdentity,
+    TargetKind as RouteTargetKind,
+};
+use crate::switcher::inventory::collect_inventory;
+use crate::switcher::route::{execute_new_attachment, execute_route};
 use crate::tmux::Tmux;
 
 pub fn run() -> Result<()> {
@@ -31,6 +40,12 @@ pub fn run() -> Result<()> {
         return doctor();
     }
     let cfg = Config::load()?;
+    match cli.command.as_ref() {
+        Some(Command::Inventory(args)) => return inventory_command(&cfg, args),
+        Some(Command::Route(args)) => return route_command(&cfg, args),
+        Some(Command::Attach(args)) => return attach_command(&cfg, args),
+        _ => {}
+    }
     let tmux = Tmux::new();
     let explicit = explicit_profile(cli.desktop, cli.mobile, cli.command.as_ref());
     let profile = determine_profile(&cfg, &tmux, explicit)?;
@@ -58,8 +73,179 @@ pub fn run() -> Result<()> {
         }
         Some(Command::Note(args)) => note(&mut ctx, args),
         Some(Command::Rename(args)) => rename(&mut ctx, args),
-        Some(Command::Doctor | Command::Completions(_)) => unreachable!(),
+        Some(
+            Command::Doctor
+            | Command::Completions(_)
+            | Command::Inventory(_)
+            | Command::Route(_)
+            | Command::Attach(_),
+        ) => unreachable!(),
     }
+}
+
+fn inventory_command(cfg: &Config, args: &InventoryArgs) -> Result<()> {
+    if args.schema != 1 || !args.json {
+        return Err(anyhow!(
+            "inventory supports only --schema 1 --json machine output"
+        ));
+    }
+    let envelope = collect_inventory(
+        &cfg.switcher,
+        args.request_id.clone().unwrap_or_else(request_id),
+        args.deadline_ms,
+    );
+    serde_json::to_writer(io::stdout().lock(), &envelope)?;
+    println!();
+    Ok(())
+}
+
+fn route_command(cfg: &Config, args: &RouteArgs) -> Result<()> {
+    if !args.json {
+        return Err(anyhow!("route supports only --json machine output"));
+    }
+    let request = route_request(args)?;
+    let response = execute_route(&cfg.switcher, request);
+    serde_json::to_writer(io::stdout().lock(), &response)?;
+    println!();
+    Ok(())
+}
+
+fn attach_command(cfg: &Config, args: &AttachArgs) -> Result<()> {
+    let request = attachment_request(args)?;
+    match execute_new_attachment(&cfg.switcher, &request) {
+        Ok(()) => Ok(()),
+        Err(response) => {
+            eprintln!("{}", serde_json::to_string(&response)?);
+            thread::sleep(Duration::from_millis(args.hold_on_error_ms.min(10_000)));
+            Err(anyhow!("tmux attachment failed"))
+        }
+    }
+}
+
+fn route_request(args: &RouteArgs) -> Result<RouteRequest> {
+    let target = target_identity(
+        args.target_kind,
+        &args.session_id,
+        args.window_id.as_deref(),
+        args.pane_id.as_deref(),
+    )?;
+    Ok(RouteRequest {
+        schema: SchemaVersion {
+            name: crate::switcher::contract::ROUTE_SCHEMA.into(),
+            major: args.schema,
+            minor: 0,
+        },
+        request_id: args.request_id.clone().unwrap_or_else(request_id),
+        host_domain: args.host_domain.clone(),
+        endpoint_id: args.endpoint_id.clone(),
+        expected_generation: args.generation.clone(),
+        target,
+        client: Some(ClientFingerprint {
+            endpoint_id: args.endpoint_id.clone(),
+            generation: args.generation.clone(),
+            client_name: args.client_name.clone(),
+            client_tty: args.client_tty.clone(),
+            client_pid: args.client_pid.clone(),
+            client_created: args.client_created.clone(),
+            client_uid: args.client_uid.clone(),
+        }),
+        mode: match args.mode {
+            RouteModeArg::PreferClient => RouteMode::PreferClient,
+            RouteModeArg::NewAttachment => RouteMode::NewAttachment,
+        },
+        deadline_ms: args.deadline_ms,
+    })
+}
+
+fn attachment_request(args: &AttachArgs) -> Result<RouteRequest> {
+    Ok(RouteRequest {
+        schema: SchemaVersion {
+            name: crate::switcher::contract::ROUTE_SCHEMA.into(),
+            major: args.schema,
+            minor: 0,
+        },
+        request_id: args.request_id.clone().unwrap_or_else(request_id),
+        host_domain: args.host_domain.clone(),
+        endpoint_id: args.endpoint_id.clone(),
+        expected_generation: args.generation.clone(),
+        target: target_identity(
+            args.target_kind,
+            &args.session_id,
+            args.window_id.as_deref(),
+            args.pane_id.as_deref(),
+        )?,
+        client: None,
+        mode: RouteMode::NewAttachment,
+        deadline_ms: args.deadline_ms,
+    })
+}
+
+fn target_identity(
+    kind: RouteTargetKindArg,
+    session_id: &str,
+    window_id: Option<&str>,
+    pane_id: Option<&str>,
+) -> Result<TargetIdentity> {
+    validate_runtime_id(session_id, '$')?;
+    let kind = match kind {
+        RouteTargetKindArg::Session => {
+            if window_id.is_some() || pane_id.is_some() {
+                return Err(anyhow!("session routes cannot include child IDs"));
+            }
+            RouteTargetKind::Session
+        }
+        RouteTargetKindArg::Window => {
+            validate_runtime_id(
+                window_id.ok_or_else(|| anyhow!("window route requires --window-id"))?,
+                '@',
+            )?;
+            if pane_id.is_some() {
+                return Err(anyhow!("window routes cannot include --pane-id"));
+            }
+            RouteTargetKind::Window
+        }
+        RouteTargetKindArg::Pane => {
+            validate_runtime_id(
+                window_id.ok_or_else(|| anyhow!("pane route requires --window-id"))?,
+                '@',
+            )?;
+            validate_runtime_id(
+                pane_id.ok_or_else(|| anyhow!("pane route requires --pane-id"))?,
+                '%',
+            )?;
+            RouteTargetKind::Pane
+        }
+    };
+    Ok(TargetIdentity {
+        kind,
+        session_id: session_id.into(),
+        window_id: window_id.map(str::to_string),
+        pane_id: pane_id.map(str::to_string),
+    })
+}
+
+fn validate_runtime_id(value: &str, sigil: char) -> Result<()> {
+    let mut chars = value.chars();
+    if chars.next() != Some(sigil)
+        || chars.as_str().is_empty()
+        || !chars.all(|ch| ch.is_ascii_digit())
+    {
+        return Err(anyhow!("invalid {sigil} runtime ID"));
+    }
+    Ok(())
+}
+
+fn request_id() -> String {
+    static COUNTER: AtomicU64 = AtomicU64::new(0);
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos();
+    format!(
+        "tmx-{}-{nanos}-{}",
+        std::process::id(),
+        COUNTER.fetch_add(1, Ordering::Relaxed)
+    )
 }
 
 struct Ctx {
@@ -538,6 +724,44 @@ fn doctor() -> Result<()> {
         }
     );
     let cfg = Config::load().unwrap_or_default();
+    println!(
+        "[INFO] WezTerm tmux augmentation: {} ({} configured endpoint{})",
+        if cfg.switcher.enabled {
+            "enabled"
+        } else {
+            "disabled"
+        },
+        cfg.switcher.endpoints.len(),
+        if cfg.switcher.endpoints.len() == 1 {
+            ""
+        } else {
+            "s"
+        }
+    );
+    let switcher_inventory = collect_inventory(&cfg.switcher, request_id(), Some(400));
+    for endpoint in &switcher_inventory.endpoints {
+        let version = endpoint
+            .generation
+            .as_ref()
+            .map(|generation| generation.tmux_version.as_str())
+            .unwrap_or("unavailable");
+        println!(
+            "[INFO] switcher endpoint {}: {:?}, tmux {}, targets {}/{}/{}, clients {}, diagnostics {}",
+            endpoint.alias,
+            endpoint.status,
+            version,
+            endpoint.sessions.len(),
+            endpoint.windows.len(),
+            endpoint.panes.len(),
+            endpoint.clients.len(),
+            endpoint
+                .diagnostics
+                .iter()
+                .map(|item| item.code.as_str())
+                .collect::<Vec<_>>()
+                .join(",")
+        );
+    }
     let state_path = cfg.state_path();
     match Store::open(&state_path) {
         Ok(store) => println!("[OK] SQLite path writable: {}", store.path().display()),

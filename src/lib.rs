@@ -13,4 +13,5 @@ pub mod palette;
 pub mod project;
 pub mod selector;
 pub mod state;
+pub mod switcher;
 pub mod tmux;

@@ -1,8 +1,44 @@
-# Build output
-/target
+# Build outputs
+/target/
+/fuzz/target/
+/fuzz/artifacts/
 
-# macOS
+# Generated fuzz inputs (keep the three named regression seeds tracked)
+/fuzz/corpus/inventory_json/
+/fuzz/corpus/inventory_records/????????????????????????????????????????
+
+# Local machine / editor / OS noise
 .DS_Store
+Thumbs.db
+*~
+*.swp
+*.swo
+.idea/
+.vscode/
+*.code-workspace
 
-# Agent session artifacts
-.pi-subagents/
+# Local secrets and machine-specific config (ship examples only)
+.env
+.env.*
+!.env.example
+/config.toml
+*.pem
+*.key
+id_rsa
+id_ed25519
+credentials.json
+
+# Python / tooling caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage/
+*.profraw
+*.profdata
+
+# Agent / session local state (never publish)
+/.pi/
+/.pi-subagents/

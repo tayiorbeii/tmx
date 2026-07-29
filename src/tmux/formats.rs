@@ -1,6 +1,8 @@
 use anyhow::{anyhow, Result};
 
-pub const SEP: &str = "\x1f";
+/// Printable framing token: tmux 3.2–3.3 rewrite literal control
+/// characters embedded in `-F` formats on some platforms.
+pub const SEP: &str = "|:tmx:core:v1:|";
 
 #[derive(Debug, Clone, Default)]
 pub struct SessionInfo {
@@ -98,7 +100,7 @@ pub fn current_format() -> String {
 }
 
 pub fn client_size_format() -> &'static str {
-    "#{client_width}\x1f#{client_height}"
+    "#{client_width}|:tmx:core:v1:|#{client_height}"
 }
 
 fn join_format(fields: &[&str]) -> String {
@@ -184,9 +186,9 @@ fn split(line: &str) -> Vec<&str> {
 }
 
 fn require(fields: &[&str], len: usize, line: &str) -> Result<()> {
-    if fields.len() < len {
+    if fields.len() != len {
         Err(anyhow!(
-            "expected at least {len} tmux fields, got {} in {line:?}",
+            "expected exactly {len} tmux fields, got {} in {line:?}",
             fields.len()
         ))
     } else {
@@ -205,6 +207,12 @@ mod tests {
         assert_eq!(s.id, "$1");
         assert!(s.attached);
         assert_eq!(s.windows, 2);
+    }
+
+    #[test]
+    fn framing_collision_is_rejected_instead_of_shifting_fields() {
+        let line = format!("$1{SEP}bad{SEP}split{SEP}/tmp{SEP}123{SEP}1{SEP}2");
+        assert!(parse_session(&line).is_err());
     }
 
     #[test]

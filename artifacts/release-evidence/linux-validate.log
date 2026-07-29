@@ -1,0 +1,184 @@
+    Checking tmx v0.1.0 (/work)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.55s
+   Compiling tmx v0.1.0 (/work)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.70s
+     Running unittests src/lib.rs (/target/debug/deps/tmx-63e2ab19f1cf387b)
+
+running 57 tests
+test commands::tests::command_generation_available ... ok
+test cli::tests::rejects_unsupported_completion_shell ... ok
+test commands::tests::scoped_keys_include_context ... ok
+test commands::tests::target_kind_detection ... ok
+test cli::tests::parses_completions_command ... ok
+test config::tests::defaults_match_spec_paths ... ok
+test config::tests::parses_toml ... ok
+test mobile::tests::explicit_wins ... ok
+test mobile::tests::small_client_is_mobile ... ok
+test mobile::tests::env_wins_over_config ... ok
+test palette::tests::row_encoding_roundtrip ... ok
+test project::tests::collision_suffixes ... ok
+test project::tests::sanitizes_session_names ... ok
+test project::tests::resolves_origin_cwd_priority ... ok
+test selector::fzf::tests::generated_rows_filter_by_visible_kind_and_metadata ... ok
+test selector::fzf::tests::desktop_uses_searchable_display_field_and_default_mouse_support ... ok
+test selector::fzf::tests::mobile_has_no_preview_or_mouse ... ok
+test cli::tests::generates_nonempty_completions_from_cli_definition ... ok
+test switcher::contract::tests::schema_versions_are_explicit ... ok
+test switcher::contract::tests::unknown_additive_inventory_fields_are_accepted ... ok
+test state::schema::tests::migration_applies ... ok
+test state::tests::notes_roundtrip ... ok
+test switcher::endpoint::tests::absolute_paths_are_never_treated_as_names ... ok
+test switcher::endpoint::tests::configured_endpoints_win_when_registration_limit_is_reached ... ok
+test switcher::endpoint::tests::discovery_prefix_is_deterministic_and_memory_bounded ... ok
+test switcher::endpoint::tests::aliases_do_not_expose_paths ... ok
+test switcher::endpoint::tests::endpoint_identity_is_deterministic_and_path_qualified ... ok
+test switcher::endpoint::tests::registered_commands_are_pinned_to_the_verified_canonical_path ... ok
+test switcher::endpoint::tests::equivalent_aliases_collapse_to_one_endpoint_identity ... ok
+test switcher::endpoint::tests::rejects_regular_file_instead_of_unix_socket ... ok
+test switcher::endpoint::tests::rejects_socket_in_group_writable_parent ... ok
+test switcher::endpoint::tests::registration_never_exceeds_contract_wide_endpoint_cap ... ok
+test switcher::endpoint::tests::rejects_symlink_socket_leaf ... ok
+test switcher::inventory::tests::canonical_endpoint_order_is_stable ... ok
+test switcher::endpoint::tests::retargeted_parent_symlink_cannot_change_registered_command_path ... ok
+test switcher::inventory::tests::endpoint_diagnostics_redact_original_and_canonical_path_spellings ... ok
+test switcher::inventory::tests::generation_tokens_change_with_server_identity ... ok
+test switcher::inventory::tests::tmux_floor_parsing_accepts_supported_suffixes_and_rejects_old_versions ... ok
+test switcher::inventory::tests::endpoint_limit_is_visible_and_only_configured_priority_prefix_is_collected ... ok
+test switcher::inventory::tests::empty_inventory_is_not_complete ... ok
+test switcher::parser::tests::delimiter_collision_is_rejected_instead_of_shifting_fields ... ok
+test switcher::parser::tests::parses_complete_hierarchy_and_clients ... ok
+test switcher::route::tests::attachment_argv_is_typed_and_attach_is_last ... ok
+test switcher::route::tests::labels_and_shell_metacharacters_never_enter_route_argv ... ok
+test switcher::route::tests::mapped_client_argv_preserves_hostile_client_as_one_argument ... ok
+test switcher::parser::tests::malformed_numbers_are_not_coerced ... ok
+test switcher::runner::tests::diagnostics_are_single_line_and_bounded ... ok
+test switcher::runner::tests::bounds_retained_stdout_and_stderr ... ok
+test switcher::runner::tests::successful_leader_cannot_leave_a_term_ignoring_descendant ... ok
+test switcher::runner::tests::timeout_kills_and_reaps_child ... ok
+test tmux::formats::tests::framing_collision_is_rejected_instead_of_shifting_fields ... ok
+test tmux::formats::tests::parses_pane_format_with_spaces ... ok
+test tmux::formats::tests::parses_session_format ... ok
+test tmux::tests::rename_command_generation ... ok
+test switcher::runner::tests::fast_exit_never_loses_captured_output ... ok
+test switcher::parser::tests::arbitrary_session_lines_never_panic ... ok
+test state::tests::mru_dedupes_by_target ... ok
+
+test result: ok. 57 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.11s
+
+     Running unittests src/main.rs (/target/debug/deps/tmx-0e4b3517c36ed90c)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/bin/tmx-supervisor.rs (/target/debug/deps/tmx_supervisor-4d0eb3bbe9c367d8)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/completions.rs (/target/debug/deps/completions-59d8e04af3dd8225)
+
+running 2 tests
+test invalid_completion_shell_reports_an_error_on_stderr ... ok
+test completion_command_writes_each_supported_shell_to_stdout ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/inventory_contract.rs (/target/debug/deps/inventory_contract-181b3335c0335806)
+
+running 6 tests
+test additive_minor_fields_are_tolerated_but_incompatible_major_is_visible ... ok
+test missing_required_contract_fields_fail_deserialization ... ok
+test endpoint_qualified_identity_keeps_colliding_runtime_ids_distinct ... ok
+test every_route_outcome_has_a_stable_machine_spelling ... ok
+test canonical_complete_fixture_round_trips_without_identity_or_order_drift ... ok
+test partial_fixture_preserves_healthy_endpoint_and_typed_failure ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/supervisor.rs (/target/debug/deps/supervisor-8c9966a26a8cf112)
+
+running 3 tests
+test outer_supervisor_preserves_success_stdout_exactly ... ok
+test successful_supervised_leader_cannot_leave_a_descendant ... ok
+test outer_supervisor_times_out_and_reaps_a_wedged_child_group ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+
+     Running tests/switcher_integration.rs (/target/debug/deps/switcher_integration-22667ccf5356345f)
+
+running 20 tests
+test current_target_route_is_a_defined_noop ... ok
+test deleted_client_fingerprint_is_rejected_without_moving_another_client ... ok
+test deterministic_barrier_rejects_socket_inode_and_generation_replacement ... ok
+test barrier_deletion_of_each_target_kind_is_stale_without_name_fallback ... ok
+test deterministic_barrier_revalidates_target_immediately_before_mutation ... ok
+test exact_client_route_preserves_unrelated_clients_and_records_shared_pane_effect ... ok
+test missing_path_endpoint_inventory_never_creates_a_server_or_socket ... ok
+test hung_endpoint_preserves_healthy_results_within_native_fallback_budget ... ok
+test inventory_and_route_cover_session_window_and_pane_with_exact_client ... ok
+test failed_new_attachment_holds_actionable_diagnostic_without_creation ... ok
+test new_attachment_barrier_deadline_returns_timeout_before_process_creation ... ok
+test new_attachment_selects_exact_pane_and_attaches_last ... ok
+test nonlocal_host_domain_is_rejected_before_endpoint_access ... ok
+test overlapping_runtime_ids_on_two_servers_never_cross_route ... ok
+test route_execution_p95_is_within_budget ... ignored, release benchmark; run via scripts/benchmark-switcher.sh
+test postcondition_race_returns_partial_success_after_proven_mutation ... ok
+test restarted_server_generation_rejects_old_selection ... ok
+test reused_pty_cannot_satisfy_an_old_client_fingerprint ... ok
+test stale_target_fails_without_creating_or_falling_back_by_name ... ok
+test typed_route_errors_cover_incompatible_untrusted_and_timeout ... ok
+
+test result: ok. 19 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 2.69s
+
+     Running tests/tmux_integration.rs (/target/debug/deps/tmux_integration-efc80ff4d958d1de)
+
+running 2 tests
+test isolated_tmux_creates_session_with_cwd ... ok
+test isolated_tmux_lists_and_renames ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+ok json_spec.decodes_contract_values
+ok json_spec.decodes_surrogate_pairs
+ok json_spec.rejects_depth_nodes_and_bytes
+ok json_spec.rejects_duplicate_keys
+ok json_spec.rejects_invalid_numbers_and_trailing_data
+ok json_spec.rejects_invalid_raw_utf8_sequences
+ok model_spec.additive_minor_fields_are_accepted
+ok model_spec.colliding_runtime_ids_on_endpoints_stay_distinct
+ok model_spec.current_native_then_matched_tmux_then_other_native
+ok model_spec.equal_labels_remain_separate_and_qualified
+ok model_spec.hostile_labels_are_sanitized_and_routes_remain_typed
+ok model_spec.malformed_identity_hierarchy_and_object_shaped_arrays_are_rejected
+ok model_spec.native_rows_survive_missing_or_invalid_tmux
+ok model_spec.order_is_independent_of_input_permutation
+ok model_spec.partial_inventory_keeps_healthy_tmux_and_all_native_rows
+ok model_spec.remote_or_ambiguous_ttys_never_match_clients
+ok model_spec.sanitizer_is_idempotent_bounded_and_removes_controls
+ok model_spec.utf8_truncation_and_long_duplicate_qualifiers_stay_bounded_and_visible
+ok adapter_spec.apply_preserves_unrelated_keys_and_installs_both_modes_and_emergency
+ok adapter_spec.focus_failure_after_activation_is_partial_and_not_retried
+ok adapter_spec.inactive_workspace_selection_activates_exact_pane_and_focuses_gui
+ok adapter_spec.matched_client_uses_typed_route_then_focuses_host
+ok adapter_spec.missing_tmx_preserves_native_selector_and_cancel_is_noop
+ok adapter_spec.native_rows_survive_malformed_oversized_incompatible_and_timeout_inventory
+ok adapter_spec.new_attachment_revalidates_invoking_domain_before_spawn
+ok adapter_spec.old_wezterm_capability_gap_preserves_existing_bindings
+ok adapter_spec.remote_invocation_never_runs_local_tmux_or_spawns_attachment
+ok adapter_spec.repeat_invocation_does_not_stack_selectors
+ok adapter_spec.route_response_requires_matching_schema_request_plan_and_fields
+ok adapter_spec.stale_native_selection_reports_error_without_creating_workspace
+ok adapter_spec.unmatched_tmux_target_spawns_one_validated_local_domain_tab
+31 Lua switcher tests passed
+validated 7 machine-contract JSON fixtures
+
+2026-07-23 isolated Linux MSRV follow-up
+Image: rust:1.85.0-bookworm (pulled manifest digest sha256:0ff31c9ffa641a62e48d543fb00b4960955ea375f40776f40f585b89e654cc5e)
+Source: read-only exact 108-path release candidate
+Command: cargo test --locked --all-targets --all-features --no-run
+rustc: 1.85.0 (4d91de4e4 2025-02-17)
+cargo: 1.85.0 (d73d2caf9 2024-12-31)
+Result: PASS; test profile compiled successfully in 26.67 seconds
+Runtime cleanup: PASS; temporary container removed and Colima stopped

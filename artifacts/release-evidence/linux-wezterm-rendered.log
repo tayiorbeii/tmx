@@ -1,0 +1,26 @@
+2026-07-22 isolated rendered Linux acceptance
+
+Environment
+- ARM64 Debian 12 container under Colima.
+- WezTerm nightly 20260117-154428-05343b38.
+- tmux 3.3a from Debian; current Linux `tmx` and `tmx-supervisor` binaries.
+- X11: Xvfb 1400x1000x24, Openbox, software rendering.
+- Wayland: Weston 10.0.1 headless backend with pixman renderer and debug screenshooter protocol.
+
+X11
+- Fuzzy selector rendered native pane/tab plus session/window/pane rows from both alpha and beta endpoints.
+- Non-fuzzy selector rendered jump keys 1-9/a/b and the same endpoint-qualified choices.
+- Native-only selector rendered exactly the two native rows.
+- Missing-tmx run preserved both native rows; bounded diagnostic behavior is asserted by adapter tests.
+- Real non-fuzzy key selection of alpha pane `%0` created exactly one additional local tab (native snapshot rows 2→4), one alpha client on `$0/@0/%0`, and zero beta clients. Evidence: linux-x11-attachment.png.
+- Real native selection listed `focus-main` and `focus-other`, selected jump key 3, switched active workspace to `focus-other`, focused the target X11 window, and rendered `OTHER / other workspace`. Evidence: linux-x11-focus-selector.png and linux-x11-native-focus.png.
+- Evidence: linux-x11-{fuzzy,nonfuzzy,native-only,fallback,attachment}.png.
+
+Wayland
+- Fuzzy selector rendered native pane/tab plus session/window/pane rows from both alpha and beta endpoints.
+- Non-fuzzy selector rendered jump keys 1-9/a/b and the same endpoint-qualified choices.
+- Native-only selector rendered exactly the two native rows.
+- Missing-tmx run preserved both native rows; bounded diagnostic behavior is asserted by adapter tests.
+- The only environment warning was unavailable xdg-desktop-portal appearance lookup; selector behavior was unaffected.
+- OS focus on Wayland remains compositor-controlled and is documented as best-effort/typed partial success.
+- Evidence: linux-wayland-{fuzzy,nonfuzzy,native-only,fallback}.png.

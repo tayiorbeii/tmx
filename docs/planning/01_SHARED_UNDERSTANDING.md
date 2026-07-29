@@ -54,7 +54,7 @@ Use Rust for the main CLI.
 Original recommendation was Go because a small Go CLI is simple and NTM is Go. After adding the performance requirement and FFF research, Rust is the better recommendation because:
 
 - the fast file/content search option FFF exposes a native Rust crate;
-- Rust produces a single static-ish binary suitable for macOS/Linux servers;
+- Rust produces self-contained static-ish executables suitable for macOS/Linux servers;
 - the tool can still remain a command-line wrapper around tmux rather than a long-running TUI;
 - Rust has strong libraries for CLI parsing, TOML config, SQLite, serialization, process execution, and testing.
 

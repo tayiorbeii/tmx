@@ -1,12 +1,12 @@
 # Building & Running `tmx`
 
-`tmx` is a Rust CLI binary. This guide covers prerequisites, build options, configuration, tmux binding setup, and basic smoke testing.
+`tmx` is a Rust CLI with a small `tmx-supervisor` companion executable for the optional WezTerm adapter. Neither executable is a daemon. This guide covers prerequisites, build options, configuration, tmux binding setup, and basic smoke testing.
 
 ## Prerequisites
 
 ```sh
-rustc --version      # 1.70+ (run `rustup update` if too old)
-cargo --version
+rustc --version      # 1.85+ (run `rustup update` if too old)
+cargo --version      # 1.85+ from the same toolchain
 tmux -V              # 3.2+ recommended (for display-popup)
 fzf --version        # 0.30+; required for palette/recent selector
 ```
@@ -161,6 +161,10 @@ Many tmux configurations already bind single keys such as `C` (customize mode), 
 Use the conflict-safe `tmx` key table from `tmux.example.conf` instead:
 
 ```tmux
+# tmux jobs may not inherit your interactive shell's PATH. Replace `tmx` with
+# the absolute path printed by `command -v tmx` if tmux cannot resolve it.
+set-option -g @tmx-bin 'tmx'
+
 # Enter the tmx key table with prefix + T (T is unbound in default tmux).
 bind-key T switch-client -T tmx
 
@@ -169,7 +173,7 @@ bind-key -T tmx p display-popup -w 90% -h 80% \
   -d "#{pane_current_path}" \
   -e TMX_ORIGIN_PANE="#{pane_id}" \
   -e TMX_ORIGIN_CWD="#{pane_current_path}" \
-  -E 'tmx palette --desktop'
+  -E '"#{@tmx-bin}" palette --desktop'
 
 # prefix + T, then m: mobile palette
 bind-key -T tmx m display-popup -w 100% -h 95% \
@@ -177,14 +181,14 @@ bind-key -T tmx m display-popup -w 100% -h 95% \
   -e TMX_ORIGIN_PANE="#{pane_id}" \
   -e TMX_ORIGIN_CWD="#{pane_current_path}" \
   -e TMX_UI=mobile \
-  -E 'tmx palette --mobile'
+  -E '"#{@tmx-bin}" palette --mobile'
 
 # prefix + T, then l: previous tmx MRU target
-bind-key -T tmx l run-shell 'tmx last'
+bind-key -T tmx l run-shell '"#{@tmx-bin}" last'
 
 # prefix + T, then n: session note
 bind-key -T tmx n command-prompt -p 'What were you working on?' \
-  'run-shell "tmx note session --set %%"'
+  'run-shell "\"#{@tmx-bin}\" note session --set \"%%\""'
 
 # prefix + T, then r: rename menu
 bind-key -T tmx r display-menu -T 'Rename' \
@@ -194,14 +198,20 @@ bind-key -T tmx r display-menu -T 'Rename' \
 
 # prefix + T, then c: create-or-attach in the current pane directory
 bind-key -T tmx c run-shell \
-  'TMX_ORIGIN_PANE="#{pane_id}" TMX_ORIGIN_CWD="#{pane_current_path}" tmx new'
+  'TMX_ORIGIN_PANE="#{pane_id}" TMX_ORIGIN_CWD="#{pane_current_path}" "#{@tmx-bin}" new'
+
+# prefix + T, then h: key reference; tmux keeps it open until Esc or C-c
+bind-key -T tmx h display-popup -T 'tmx keys - Esc/C-c closes' -w 90% -h 80% \
+  'printf "%s\n" "Keys are sequential:" "  prefix, T, then one key" "" "p  Desktop palette" "m  Mobile palette" "l  Previous tmx target" "n  Note current session" "r  Rename session/window/pane" "c  Create/attach for pane cwd" "h  This help" "" "Press Esc or Ctrl-c to close."; while :; do sleep 3600; done'
 ```
 
 These are three sequential keystrokes, not one chord. For example, with a `C-a` prefix:
 
 1. Hold `Ctrl` and press `a`, then release both.
 2. Press uppercase `T` (`Shift-t`), then release it. This enters the one-key `tmx` table.
-3. Press lowercase `p` for desktop or lowercase `m` for mobile.
+3. Press lowercase `p` for desktop, lowercase `m` for mobile, or lowercase `h` for help.
+
+The `h` binding uses a tmux-native popup sized as a percentage of the client, with short lines that remain usable on narrow terminals. It intentionally keeps a tiny shell command running so the panel cannot flash away; press `Esc` or `Ctrl-c` to dismiss it.
 
 The sequence works only after the block above (or `tmux.example.conf`) has been copied into `~/.tmux.conf` and sourced. Verify installation with `tmux list-keys -T tmx`; `table tmx doesn't exist` means the bindings have not been loaded.
 
@@ -212,6 +222,24 @@ tmux source-file ~/.tmux.conf
 ```
 
 Or from inside tmux: `prefix` + `:` then `source-file ~/.tmux.conf`.
+
+### Executable path and the tmux command prompt
+
+`display-popup` and `run-shell` use the tmux server environment, which may not include PATH changes made by your interactive shell. The sample centralizes the executable name in `@tmx-bin`. If bare `tmx` is not found, use the installation-independent path reported by your shell:
+
+```sh
+command -v tmx
+```
+
+Copy that absolute path into `~/.tmux.conf`, then reload it:
+
+```tmux
+set-option -g @tmx-bin '/absolute/path/printed/by/command-v'
+```
+
+Alternatively, update the current server's PATH from an interactive shell before reloading: `tmux set-environment -g PATH "$PATH"`. An absolute `@tmx-bin` remains the most predictable option across server restarts.
+
+The `prefix` + `:` prompt accepts tmux commands. `tmx` is an external binary, so bare `:tmx last` is not valid; use `prefix` + `T` + `l` or enter `run-shell '"#{@tmx-bin}" last'` at the tmux prompt.
 
 ### Environment variables explained
 
@@ -332,10 +360,16 @@ tmx rename session             # prompts for name on stdin
 ## Developer Validation
 
 ```sh
-cargo fmt                           # formatting check
-cargo test                          # unit + isolated tmux integration tests
-cargo clippy --all-targets -- -D warnings   # lint (must be clean)
+./scripts/validate.sh                  # direct local evidence gate plus fmt, clippy, Rust/Lua/integration, and fixture validation
+TMX_VALIDATION_CONTEXT=package ./scripts/validate.sh # extracted .crate self-test only; explicitly not release validation
+./scripts/benchmark-switcher.sh                # release-mode inventory and 1,000-choice timing gates
+./scripts/validate-release-evidence.sh --local # links, checksums, default-off, curated fuzz and candidate hygiene
+./scripts/validate-release-evidence.sh         # final fail-closed publication/canary evidence gate
 ```
+
+The default validation context is `repository`; unknown values fail closed. The explicit `package` context requires a Cargo source archive layout, announces that repository-candidate evidence was not checked, and cannot be used from a repository worktree. The integration suites require tmux and never silently pass when it is absent. Every test uses a unique `TMUX_TMPDIR`, explicit endpoint, `/dev/null` configuration, bounded polling, and unconditional cleanup; ambient `TMUX`/`TMUX_PANE` are removed. CI additionally builds tmux 3.2 and 3.6a and runs nightly parser/contract fuzz targets.
+
+For the unified WezTerm selector, see [WEZTERM_SWITCHER.md](WEZTERM_SWITCHER.md), [MACHINE_API.md](MACHINE_API.md), and the evidence requirements in [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md).
 
 ---
 
@@ -343,15 +377,17 @@ cargo clippy --all-targets -- -D warnings   # lint (must be clean)
 
 | Symptom | Fix |
 |---|---|
-| `tmx: command not found` | Add `~/.cargo/bin` to `PATH`, or use `./target/release/tmx` |
+| `tmx: command not found` in a shell | Add the directory containing tmx to `PATH`; use `command -v tmx` to verify the installation |
 | Palette fails / fzf not found | Install fzf: `brew install fzf` (macOS) or `apt install fzf` |
 | Typing does not filter | Check `fzf --version` and temporarily test with `env -u FZF_DEFAULT_OPTS -u FZF_DEFAULT_OPTS_FILE tmx palette --desktop`; custom fzf defaults such as disabled search can change interaction |
-| `prefix T p` does nothing | Load the example bindings, run `tmux source-file ~/.tmux.conf`, then confirm `tmux list-keys -T tmx` lists `p` |
+| `prefix T p` flashes or reports `tmx: command not found` | Set `@tmx-bin` to the absolute output of `command -v tmx`, reload the config, and retry |
+| `prefix T p` does nothing | Load the example bindings, run `tmux source-file ~/.tmux.conf`, then confirm `tmux list-keys -T tmx` lists `p` and `h` |
 | `tmx` commands fail outside tmux | Some commands require an active tmux session |
 | `tmx new` uses wrong directory | Ensure `TMX_ORIGIN_CWD` is set in the tmux binding, or run from the right directory |
 | `tmx last` says "no previous target" | MRU is empty — switch between a few targets first |
 | Corrupted state | Delete `~/.local/state/tmx/state.sqlite3` and `tmx doctor` to confirm |
-| `display-popup` not available | Requires tmux 3.2+; run `tmx` directly at `prefix`+`:` prompt instead |
+| Unified switcher shows native rows only | Verify both rollout flags, the absolute `tmx_bin`, endpoint trust, and `tmx inventory --schema 1 --json`; see [WEZTERM_SWITCHER.md](WEZTERM_SWITCHER.md#troubleshooting) |
+| `display-popup` not available | Upgrade to tmux 3.2+; until then, run `tmx` from a normal shell pane (not the tmux `prefix` + `:` command prompt) |
 
 ---
 

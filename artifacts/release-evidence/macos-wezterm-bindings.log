@@ -1,0 +1,24 @@
+2026-07-22 final local evidence
+- Host: macOS 15.6.1 arm64; WezTerm 20260716-195552-76b606ec; tmux 3.6a.
+- Final `wezterm --config-file wezterm/example.lua ls-fonts` configuration load: exit 0.
+- Final `show-keys --lua`: phys:9 ALT -> user-defined-0; phys:9 SHIFT|ALT -> user-defined-1; phys:0 ALT -> user-defined-2.
+- Real isolated `tmx-supervisor -> tmx inventory` path-socket smoke: exit 0; exact request/session JSON asserted.
+- The callback traces below were captured from real macOS WezTerm processes; Escape dismissed the first selector before the non-fuzzy invocation.
+
+12:04:02.941  ERROR  logging > lua: TRACE open fuzzy=true native_only=false
+12:04:02.942  ERROR  logging > lua: TRACE snapshot=2
+12:04:02.997  ERROR  logging > lua: TRACE choices=5
+12:04:02.999  ERROR  logging > lua: TRACE presented=true error=nil
+12:04:05.773  ERROR  logging > lua: TRACE open fuzzy=false native_only=false
+12:04:05.774  ERROR  logging > lua: TRACE snapshot=2
+12:04:05.822  ERROR  logging > lua: TRACE choices=5
+12:04:05.823  ERROR  logging > lua: TRACE presented=true error=nil
+
+13:29:29 final rendered acceptance
+- Fuzzy selector: 14 choices, zero diagnostics; two native workspaces each contributed pane+tab rows and two trusted tmux endpoints each contributed session, two windows, and two panes. Evidence: macos-wezterm-fuzzy.png.
+- Non-fuzzy selector: 12 choices, zero diagnostics, visible jump-key UX and both endpoint-qualified tmux hierarchies. Evidence: macos-wezterm-nonfuzzy.png.
+- Native-only selector: exactly two native choices and a zero-byte tmx invocation log. Evidence: macos-wezterm-native-only.png.
+- A PID-targeted Escape event dismissed the fuzzy selector without closing its terminal. Evidence: macos-wezterm-after-cancel.png.
+- Exact-window capture used the isolated wezterm-gui PID/CoreGraphics window ID, so no unrelated desktop or terminal content is present.
+- Final global-enumeration rerun rendered 14 choices: pane+tab rows from `acceptance-main` and `acceptance-other`, plus all ten rows from the alpha/beta tmux endpoints.
+- Missing-tmx rerun rendered `Destinations — tmx inventory unavailable` with both native choices intact. Evidence: macos-wezterm-fallback.png.

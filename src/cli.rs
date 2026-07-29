@@ -42,8 +42,108 @@ pub enum Command {
     Rename(RenameArgs),
     /// Check dependencies, paths, and tmux capabilities.
     Doctor,
+    /// Emit bounded, side-effect-free tmux inventory JSON for machine consumers.
+    Inventory(InventoryArgs),
+    /// Revalidate and route one exact tmux client to a typed target.
+    Route(RouteArgs),
+    /// Revalidate and attach this terminal to a typed target.
+    #[command(hide = true)]
+    Attach(AttachArgs),
     /// Generate a shell completion script on stdout.
     Completions(CompletionsArgs),
+}
+
+#[derive(Debug, Args, Clone)]
+pub struct InventoryArgs {
+    /// Inventory contract major version.
+    #[arg(long, default_value_t = 1)]
+    pub schema: u16,
+    /// Emit the machine JSON contract (the only supported inventory output).
+    #[arg(long)]
+    pub json: bool,
+    /// Invocation-local request identifier.
+    #[arg(long)]
+    pub request_id: Option<String>,
+    /// Override the bounded inventory deadline (100-2000 ms).
+    #[arg(long)]
+    pub deadline_ms: Option<u64>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub enum RouteTargetKindArg {
+    Session,
+    Window,
+    Pane,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub enum RouteModeArg {
+    PreferClient,
+    NewAttachment,
+}
+
+#[derive(Debug, Args, Clone)]
+pub struct RouteArgs {
+    #[arg(long, default_value_t = 1)]
+    pub schema: u16,
+    #[arg(long)]
+    pub json: bool,
+    #[arg(long)]
+    pub request_id: Option<String>,
+    #[arg(long, default_value = "local")]
+    pub host_domain: String,
+    #[arg(long)]
+    pub endpoint_id: String,
+    #[arg(long)]
+    pub generation: String,
+    #[arg(long, value_enum)]
+    pub target_kind: RouteTargetKindArg,
+    #[arg(long, allow_hyphen_values = true)]
+    pub session_id: String,
+    #[arg(long, allow_hyphen_values = true)]
+    pub window_id: Option<String>,
+    #[arg(long, allow_hyphen_values = true)]
+    pub pane_id: Option<String>,
+    #[arg(long, value_enum, default_value = "prefer-client")]
+    pub mode: RouteModeArg,
+    #[arg(long, allow_hyphen_values = true)]
+    pub client_name: String,
+    #[arg(long, allow_hyphen_values = true)]
+    pub client_tty: String,
+    #[arg(long)]
+    pub client_pid: String,
+    #[arg(long)]
+    pub client_created: String,
+    #[arg(long)]
+    pub client_uid: String,
+    #[arg(long, default_value_t = 250)]
+    pub deadline_ms: u64,
+}
+
+#[derive(Debug, Args, Clone)]
+pub struct AttachArgs {
+    #[arg(long, default_value_t = 1)]
+    pub schema: u16,
+    #[arg(long)]
+    pub request_id: Option<String>,
+    #[arg(long, default_value = "local")]
+    pub host_domain: String,
+    #[arg(long)]
+    pub endpoint_id: String,
+    #[arg(long)]
+    pub generation: String,
+    #[arg(long, value_enum)]
+    pub target_kind: RouteTargetKindArg,
+    #[arg(long, allow_hyphen_values = true)]
+    pub session_id: String,
+    #[arg(long, allow_hyphen_values = true)]
+    pub window_id: Option<String>,
+    #[arg(long, allow_hyphen_values = true)]
+    pub pane_id: Option<String>,
+    #[arg(long, default_value_t = 250)]
+    pub deadline_ms: u64,
+    #[arg(long, default_value_t = 3000)]
+    pub hold_on_error_ms: u64,
 }
 
 #[derive(Debug, Args, Clone)]

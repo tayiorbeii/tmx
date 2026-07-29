@@ -1,0 +1,95 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c
+        with:
+          toolchain: stable
+          components: rustfmt, clippy
+      - name: Install Linux prerequisites
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y tmux lua5.4
+      - name: Install macOS prerequisites
+        if: runner.os == 'macOS'
+        run: brew install tmux lua
+      - run: PYTHONOPTIMIZE=1 ./scripts/validate.sh
+      - run: ./scripts/validate-release-evidence.sh --local
+
+  msrv:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c
+        with:
+          toolchain: 1.85.0
+      - name: Compile every target and feature at the package MSRV
+        run: cargo test --locked --all-targets --all-features --no-run
+
+  tmux-version-matrix:
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - tmux: '3.2'
+            sha256: 664d345338c11cbe429d7ff939b92a5191e231a7c1ef42f381cebacb1e08a399
+          - tmux: '3.6a'
+            sha256: b6d8d9c76585db8ef5fa00d4931902fa4b8cbe8166f528f44fc403961a3f3759
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c
+        with:
+          toolchain: stable
+      - name: Build tmux ${{ matrix.tmux }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential bison pkg-config libevent-dev libncurses-dev lua5.4
+          curl --fail --silent --show-error --location --remote-name --proto '=https' --proto-redir '=https' --tlsv1.2 "https://github.com/tmux/tmux/releases/download/${{ matrix.tmux }}/tmux-${{ matrix.tmux }}.tar.gz"
+          echo "${{ matrix.sha256 }}  tmux-${{ matrix.tmux }}.tar.gz" | sha256sum --check --strict -
+          tar xf "tmux-${{ matrix.tmux }}.tar.gz"
+          cd "tmux-${{ matrix.tmux }}"
+          ./configure --prefix="$RUNNER_TEMP/tmux"
+          make -j2
+          make install
+          echo "$RUNNER_TEMP/tmux/bin" >> "$GITHUB_PATH"
+      - name: Verify exact version and run compatibility suites
+        run: |
+          tmux -V
+          cargo test --locked --all-targets --all-features
+          lua tests/lua/run.lua
+
+  release-budgets:
+    runs-on: macos-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c
+        with:
+          toolchain: stable
+      - run: brew install tmux lua
+      - run: ./scripts/benchmark-switcher.sh

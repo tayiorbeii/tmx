@@ -1,0 +1,12 @@
+[
+  {"schema":{"name":"dev.tmx.route","major":1,"minor":0},"request_id":"success","plan_kind":"mapped_client","outcome":"success","elapsed_ms":1,"diagnostics":[]},
+  {"schema":{"name":"dev.tmx.route","major":1,"minor":0},"request_id":"new","plan_kind":"new_attachment","outcome":"success_new_attachment","elapsed_ms":2,"diagnostics":[]},
+  {"schema":{"name":"dev.tmx.route","major":1,"minor":0},"request_id":"target","plan_kind":"mapped_client","outcome":"stale_target","elapsed_ms":3,"diagnostics":[]},
+  {"schema":{"name":"dev.tmx.route","major":1,"minor":0},"request_id":"client","plan_kind":"mapped_client","outcome":"stale_client","elapsed_ms":4,"diagnostics":[]},
+  {"schema":{"name":"dev.tmx.route","major":1,"minor":0},"request_id":"unavailable","plan_kind":"mapped_client","outcome":"unavailable_endpoint","elapsed_ms":5,"diagnostics":[]},
+  {"schema":{"name":"dev.tmx.route","major":1,"minor":0},"request_id":"untrusted","plan_kind":"mapped_client","outcome":"untrusted_endpoint","elapsed_ms":6,"diagnostics":[]},
+  {"schema":{"name":"dev.tmx.route","major":1,"minor":0},"request_id":"schema","plan_kind":"mapped_client","outcome":"incompatible_schema","elapsed_ms":7,"diagnostics":[]},
+  {"schema":{"name":"dev.tmx.route","major":1,"minor":0},"request_id":"timeout","plan_kind":"mapped_client","outcome":"timeout","elapsed_ms":8,"diagnostics":[]},
+  {"schema":{"name":"dev.tmx.route","major":1,"minor":0},"request_id":"command","plan_kind":"mapped_client","outcome":"command_failure","elapsed_ms":9,"diagnostics":[]},
+  {"schema":{"name":"dev.tmx.route","major":1,"minor":0},"request_id":"partial","plan_kind":"mapped_client","outcome":"partial_success","elapsed_ms":10,"diagnostics":[]}
+]

@@ -47,3 +47,29 @@ rename_menu = "R"
 show_in_palette = false
 require_confirmation = true
 mobile_require_typed_confirmation = true
+
+# WezTerm unified-switcher rollout. Keep disabled until the Lua adapter is installed.
+[switcher]
+enabled = false
+deadline_ms = 400
+endpoint_soft_timeout_ms = 150
+max_concurrency = 4
+max_endpoints = 32
+max_targets = 10000
+max_stdout_bytes_per_endpoint = 4194304
+max_stderr_bytes_per_endpoint = 16384
+discover_named = false
+
+# Supported selectors: default, name:<socket-name>, path:<absolute-socket-path>.
+# Aliases are safe display text; never use a raw socket path as an alias.
+[[switcher.endpoints]]
+selector = "default"
+alias = "default"
+
+# [[switcher.endpoints]]
+# selector = "name:work"
+# alias = "work"
+
+# [[switcher.endpoints]]
+# selector = "path:/absolute/path/to/trusted.sock"
+# alias = "project"

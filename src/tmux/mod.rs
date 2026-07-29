@@ -8,9 +8,15 @@ use crate::model::CurrentTarget;
 use formats::{parse_panes, parse_sessions, parse_windows, PaneInfo, SessionInfo, WindowInfo};
 
 #[derive(Debug, Clone)]
+enum SocketSelector {
+    Name(String),
+    Path(String),
+}
+
+#[derive(Debug, Clone)]
 pub struct Tmux {
     bin: String,
-    socket: Option<String>,
+    socket: Option<SocketSelector>,
 }
 
 impl Default for Tmux {
@@ -30,7 +36,14 @@ impl Tmux {
     pub fn with_socket(socket: impl Into<String>) -> Self {
         Self {
             bin: "tmux".into(),
-            socket: Some(socket.into()),
+            socket: Some(SocketSelector::Name(socket.into())),
+        }
+    }
+
+    pub fn with_socket_path(socket: impl Into<String>) -> Self {
+        Self {
+            bin: "tmux".into(),
+            socket: Some(SocketSelector::Path(socket.into())),
         }
     }
 
@@ -45,8 +58,10 @@ impl Tmux {
     {
         let mut out = Vec::new();
         if let Some(socket) = &self.socket {
-            out.push("-L".into());
-            out.push(socket.clone());
+            match socket {
+                SocketSelector::Name(value) => out.extend(["-L".into(), value.clone()]),
+                SocketSelector::Path(value) => out.extend(["-S".into(), value.clone()]),
+            }
         }
         out.extend(args.into_iter().map(|s| s.as_ref().to_string()));
         out
@@ -59,7 +74,10 @@ impl Tmux {
     {
         let mut cmd = Command::new(&self.bin);
         if let Some(socket) = &self.socket {
-            cmd.arg("-L").arg(socket);
+            match socket {
+                SocketSelector::Name(value) => cmd.arg("-L").arg(value),
+                SocketSelector::Path(value) => cmd.arg("-S").arg(value),
+            };
         }
         cmd.args(args);
         let output = cmd.output().with_context(|| "running tmux")?;
@@ -80,7 +98,10 @@ impl Tmux {
     {
         let mut cmd = Command::new(&self.bin);
         if let Some(socket) = &self.socket {
-            cmd.arg("-L").arg(socket);
+            match socket {
+                SocketSelector::Name(value) => cmd.arg("-L").arg(value),
+                SocketSelector::Path(value) => cmd.arg("-S").arg(value),
+            };
         }
         let status = cmd
             .args(args)

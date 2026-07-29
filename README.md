@@ -2,7 +2,7 @@
 
 A lightweight tmux-native workflow layer: fast fuzzy switching across sessions, windows, and panes, current-directory session creation, scoped notes, MRU history, and renaming — all through a single fzf-powered palette that works on desktop and over SSH from a phone.
 
-`tmx` is a single Rust binary. No daemon, no ports, no background server.
+`tmx` ships the user-facing Rust CLI plus a small `tmx-supervisor` executable used only by the optional WezTerm adapter. Neither is a daemon: there are no listening ports or background servers.
 
 ## Features
 
@@ -18,7 +18,7 @@ A lightweight tmux-native workflow layer: fast fuzzy switching across sessions, 
 
 ## Requirements
 
-- Rust 1.70+ (build)
+- Rust 1.85+ (build; enforced by package metadata and CI)
 - tmux 3.2+ recommended (for `display-popup`)
 - fzf 0.30+ (palette/recent selector)
 - Optional: git, fd, rg, zoxide
@@ -40,7 +40,7 @@ tmx new         # create-or-attach a session for the current directory
 tmx ls          # list live targets
 ```
 
-Copy the conflict-safe key bindings from [`tmux.example.conf`](tmux.example.conf) into `~/.tmux.conf` to open the palette with `prefix` + `T` + `p` (desktop) or `prefix` + `T` + `m` (mobile).
+Copy the conflict-safe key bindings from [`tmux.example.conf`](tmux.example.conf) into `~/.tmux.conf` to open the palette with `prefix` + `T` + `p` (desktop) or `prefix` + `T` + `m` (mobile). Use `prefix` + `T` + `h` for an in-tmux key reference.
 
 ## Working with tmx
 
@@ -115,6 +115,17 @@ Copying [`tmux.example.conf`](tmux.example.conf) into `~/.tmux.conf` gives you a
 | `n` | Prompt for a note on the current session |
 | `r` | Menu to rename the session, window, or pane |
 | `c` | Create-or-attach a session for the current pane's directory |
+| `h` | Show this key reference in a help popup |
+
+The three keys are sequential, not a chord: press your prefix and release it, press uppercase `T` and release it, then press the lowercase command key. The `h` popup stays visible until you dismiss it with `Esc` or `Ctrl-c`.
+
+The example stores the executable in the tmux option `@tmx-bin`, which defaults to `tmx`. Popup and `run-shell` commands may not inherit your interactive shell's `PATH`. Regardless of how you installed tmx, run `command -v tmx`; if tmux cannot find the executable, set `@tmx-bin` to that absolute path in `~/.tmux.conf`:
+
+```tmux
+set-option -g @tmx-bin '/absolute/path/printed/by/command-v'
+```
+
+Reload with `tmux source-file ~/.tmux.conf`, or from inside tmux use `prefix` + `:`, then enter `source-file ~/.tmux.conf`. The tmux command prompt accepts tmux commands, not external binaries: use the shipped binding or `run-shell '"#{@tmx-bin}" last'` instead of bare `:tmx last`.
 
 See [docs/BUILD_AND_RUN.md](docs/BUILD_AND_RUN.md#tmux-bindings) for the full walkthrough, including how the key sequence works and how to verify it loaded.
 
@@ -140,6 +151,14 @@ tmx completions fish > ~/.config/fish/completions/tmx.fish
 
 See [docs/BUILD_AND_RUN.md](docs/BUILD_AND_RUN.md#shell-completions) for details.
 
+## Unified WezTerm destination switcher
+
+The optional WezTerm adapter keeps the fuzzy `Alt+9` and non-fuzzy `Alt+Shift+9` interactions while adding every live native WezTerm tab/pane and every live tmux session/window/pane from configured trusted local endpoints. It falls back to native destinations when `tmx` or an endpoint is missing, malformed, stale, slow, or incompatible. `Alt+0` is installed as a native-only emergency binding.
+
+Installation, canary/rollback flags, endpoint trust rules, target semantics, shared tmux pane effects, and troubleshooting are documented in [`docs/WEZTERM_SWITCHER.md`](docs/WEZTERM_SWITCHER.md). The versioned JSON and typed route surfaces are documented in [`docs/MACHINE_API.md`](docs/MACHINE_API.md).
+
+The integration is disabled by default. After installing the Lua module, enable `[switcher].enabled = true` in `~/.config/tmx/config.toml`; disabling that flag immediately restores native-only choices without changing tmux or the state database.
+
 ## Configuration
 
 Optional TOML config at `~/.config/tmx/config.toml` (see [`config.example.toml`](config.example.toml)). State (notes, MRU) lives in SQLite at `~/.local/state/tmx/state.sqlite3` and is safe to delete.
@@ -147,14 +166,17 @@ Optional TOML config at `~/.config/tmx/config.toml` (see [`config.example.toml`]
 ## Documentation
 
 - [docs/BUILD_AND_RUN.md](docs/BUILD_AND_RUN.md) — build, install, configure, tmux bindings, smoke tests, troubleshooting.
+- [docs/WEZTERM_SWITCHER.md](docs/WEZTERM_SWITCHER.md) — unified selector setup, behavior, trust, compatibility, and rollback.
+- [docs/MACHINE_API.md](docs/MACHINE_API.md) — inventory/route schema v1 and typed command reference.
+- [docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md) — performance, version, GUI, canary, and rollback evidence.
+- [docs/PRD_TRACEABILITY.md](docs/PRD_TRACEABILITY.md) — exhaustive requirement-to-implementation/evidence audit and remaining external gates.
 - [docs/planning/](docs/planning/00_INDEX.md) — the original design and planning pack (architecture, UX, phases, test plan).
 
 ## Development
 
 ```sh
-cargo fmt --check
-cargo test
-cargo clippy --all-targets --all-features
+./scripts/validate.sh
+./scripts/benchmark-switcher.sh  # pinned release-budget check
 ```
 
 Integration tests use isolated tmux sockets (`tmux -L tmx-test-…`) and never touch your live tmux sessions.
